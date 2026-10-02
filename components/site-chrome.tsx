@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
@@ -36,28 +36,39 @@ function getAccountProfile(user: User | null): AccountProfile | null {
 }
 
 function getInitialTheme(): "light" | "dark" {
-    if (typeof window === "undefined") return "light";
-
     const savedTheme = window.localStorage.getItem("theme");
     if (savedTheme === "light" || savedTheme === "dark") return savedTheme;
 
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function subscribeToThemeChanges(onChange: () => void) {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    mediaQuery.addEventListener("change", onChange);
+    window.addEventListener("storage", onChange);
+    window.addEventListener("theme-change", onChange);
+
+    return () => {
+        mediaQuery.removeEventListener("change", onChange);
+        window.removeEventListener("storage", onChange);
+        window.removeEventListener("theme-change", onChange);
+    };
+}
+
 export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>) {
     const pathname = usePathname();
     const router = useRouter();
-    // Keep the first client render in sync with the server. Browser storage and
-    // system preferences are applied after hydration in the effect below.
-    const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
+    // The server snapshot keeps hydration stable; the browser snapshot applies
+    // saved preferences as soon as React subscribes after hydration.
+    const resolvedTheme = useSyncExternalStore(
+        subscribeToThemeChanges,
+        getInitialTheme,
+        (): "light" | "dark" => "light",
+    );
     const [profile, setProfile] = useState<AccountProfile | null>(null);
     const displayName = profile?.fullName ?? "";
     const avatarInitial = displayName.trim().charAt(0).toUpperCase();
     const isAuthPage = pathname === "/sign-in" || pathname === "/sign-up";
-
-    useEffect(() => {
-        setResolvedTheme(getInitialTheme());
-    }, []);
 
     useEffect(() => {
         if (!getSupabaseConfig()) return;
@@ -84,7 +95,7 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
         const handleSystemThemeChange = () => {
             const storedTheme = window.localStorage.getItem("theme");
             if (storedTheme !== "light" && storedTheme !== "dark") {
-                setResolvedTheme(mediaQuery.matches ? "dark" : "light");
+                window.dispatchEvent(new Event("theme-change"));
             }
         };
 
@@ -98,8 +109,8 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
 
     function handleDarkThemeChange(checked: boolean) {
         const nextTheme = checked ? "dark" : "light";
-        setResolvedTheme(nextTheme);
         window.localStorage.setItem("theme", nextTheme);
+        window.dispatchEvent(new Event("theme-change"));
     }
 
     async function handleSignOut() {

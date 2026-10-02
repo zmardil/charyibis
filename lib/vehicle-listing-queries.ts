@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { VehicleListing as DatabaseVehicleListing } from "../generated/prisma/client";
-import { prisma } from "./prisma";
+import { getPrismaClient } from "./prisma";
 import type { VehicleListingData } from "./vehicle-listing-types";
 
 function readDetails(value: unknown): Record<string, string> | undefined {
@@ -48,7 +48,7 @@ function toVehicleListingData(
 }
 
 export async function getVehicleListings() {
-  const listings = await prisma.vehicleListing.findMany({
+  const listings = await getPrismaClient().vehicleListing.findMany({
     orderBy: { createdAt: "desc" },
   });
 
@@ -56,12 +56,12 @@ export async function getVehicleListings() {
 }
 
 export async function getVehicleListingBySlug(slug: string) {
-  const listing = await prisma.vehicleListing.findUnique({ where: { slug } });
+  const listing = await getPrismaClient().vehicleListing.findUnique({ where: { slug } });
   return listing ? toVehicleListingData(listing) : null;
 }
 
 export async function getRecommendedVehicleListings(slug: string, take = 3) {
-  const listings = await prisma.vehicleListing.findMany({
+  const listings = await getPrismaClient().vehicleListing.findMany({
     where: { slug: { not: slug } },
     orderBy: { createdAt: "desc" },
     take,
@@ -71,7 +71,7 @@ export async function getRecommendedVehicleListings(slug: string, take = 3) {
 }
 
 export async function getFavoriteVehicleSlugs(userId: string) {
-  const favorites = await prisma.vehicleFavorite.findMany({
+  const favorites = await getPrismaClient().vehicleFavorite.findMany({
     where: { userId },
     select: { listingSlug: true },
   });
@@ -80,7 +80,7 @@ export async function getFavoriteVehicleSlugs(userId: string) {
 }
 
 export async function getFavoriteVehicleListings(userId: string) {
-  const favorites = await prisma.vehicleFavorite.findMany({
+  const favorites = await getPrismaClient().vehicleFavorite.findMany({
     where: { userId },
     include: { listing: true },
     orderBy: { createdAt: "desc" },
