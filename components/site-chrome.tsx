@@ -47,11 +47,17 @@ function getInitialTheme(): "light" | "dark" {
 export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>) {
     const pathname = usePathname();
     const router = useRouter();
-    const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(getInitialTheme);
+    // Keep the first client render in sync with the server. Browser storage and
+    // system preferences are applied after hydration in the effect below.
+    const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
     const [profile, setProfile] = useState<AccountProfile | null>(null);
     const displayName = profile?.fullName ?? "";
     const avatarInitial = displayName.trim().charAt(0).toUpperCase();
     const isAuthPage = pathname === "/sign-in" || pathname === "/sign-up";
+
+    useEffect(() => {
+        setResolvedTheme(getInitialTheme());
+    }, []);
 
     useEffect(() => {
         if (!getSupabaseConfig()) return;
