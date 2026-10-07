@@ -122,9 +122,9 @@ export function VehicleListing({
           </a>
           {!compact && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className={`size-9 shrink-0 ${isSaved ? "border-indigo-600 text-indigo-600" : ""}`}
+              className={`size-9 shrink-0 ${isSaved ? "text-indigo-600" : ""}`}
               aria-label={isSaved ? "Remove saved vehicle listing" : "Save vehicle listing"}
               aria-pressed={isSaved}
               onClick={() => setIsSaved((saved) => !saved)}

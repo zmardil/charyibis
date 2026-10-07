@@ -23,9 +23,9 @@ export function VehicleGallery({
     return (
         <section
             aria-label={`${listing.title} photos`}
-            className={bleed ? "space-y-3 bg-popover" : "space-y-3 rounded-lg bg-black p-2"}
+            className={bleed ? "space-y-3 bg-popover" : "space-y-3 rounded-lg p-2"}
         >
-            <div className={`relative aspect-4/3 overflow-hidden ${bleed ? "bg-popover rounded-none" : "bg-black rounded-lg"} sm:aspect-16/10`}>
+            <div className={`relative aspect-4/3 overflow-hidden ${bleed ? "bg-popover rounded-none" : "bg-transparent rounded-lg"} sm:aspect-16/10`}>
                 {selectedImage ? (
                     <img
                         src={selectedImage.src}
