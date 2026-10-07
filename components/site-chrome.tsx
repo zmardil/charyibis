@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { Bell, LogOut, Settings } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import {
     Avatar,
@@ -132,11 +132,32 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
                     <Link href="/" className="text-sm font-semibold tracking-tight text-foreground">
                         Charybis
                     </Link>
-                    <nav className="flex items-center gap-3 text-sm">
+                    <nav className="flex items-center gap-1 text-sm">
                         <ThemeToggle
                             resolvedTheme={resolvedTheme}
                             onDarkThemeChange={handleDarkThemeChange}
                         />
+                        {profile && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger
+                                    type="button"
+                                    aria-label="Open notifications"
+                                    className="inline-flex size-7 items-center justify-center rounded-md text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    <Bell className="size-4" aria-hidden="true" />
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-72">
+                                    <DropdownMenuGroup>
+                                        <DropdownMenuLabel className="text-foreground">Notifications</DropdownMenuLabel>
+                                    </DropdownMenuGroup>
+                                    <DropdownMenuSeparator />
+                                    <div className="px-3 py-8 text-center">
+                                        <p className="text-sm font-medium text-foreground">You’re all caught up</p>
+                                        <p className="mt-1 text-xs text-muted-foreground">No new notifications right now.</p>
+                                    </div>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
                         {profile ? (
                             <DropdownMenu>
                                 <DropdownMenuTrigger
@@ -150,9 +171,9 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
                                     </Avatar>
                                     <span className="max-w-36 truncate text-xs font-semibold">{displayName}</span>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56 p-2">
+                                <DropdownMenuContent align="end" className="w-56">
                                     <DropdownMenuGroup>
-                                        <DropdownMenuLabel className="px-2 py-2 font-normal">
+                                        <DropdownMenuLabel className="font-normal">
                                             <div className="flex min-w-0 flex-col">
                                                 <span className="truncate text-sm font-medium text-foreground">{displayName}</span>
                                                 {profile.email && (
@@ -161,8 +182,16 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
                                             </div>
                                         </DropdownMenuLabel>
                                     </DropdownMenuGroup>
-                                    <DropdownMenuSeparator className="-mx-2 my-2" />
-                                    <DropdownMenuItem className="px-2 py-2 text-xs" variant="destructive" onClick={() => void handleSignOut()}>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        className="text-xs"
+                                        render={<Link href="/settings" />}
+                                    >
+                                        <Settings className="size-4" aria-hidden="true" />
+                                        Settings
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="text-xs" variant="destructive" onClick={() => void handleSignOut()}>
                                         <LogOut className="size-4" aria-hidden="true" />
                                         Sign out
                                     </DropdownMenuItem>
