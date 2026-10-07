@@ -141,7 +141,7 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
                             <DropdownMenu>
                                 <DropdownMenuTrigger
                                     aria-label={`Open ${displayName} account menu`}
-                                    className="inline-flex h-7 max-w-48 items-center gap-2 rounded-full text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="inline-flex h-8 max-w-48 items-center gap-2 rounded-full px-1 text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 >
                                     <Avatar size="sm">
                                         <AvatarFallback className="bg-indigo-600 text-xs font-semibold text-white">
@@ -150,9 +150,9 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
                                     </Avatar>
                                     <span className="max-w-36 truncate text-xs font-semibold">{displayName}</span>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuContent align="end" className="w-56 p-2">
                                     <DropdownMenuGroup>
-                                        <DropdownMenuLabel className="font-normal">
+                                        <DropdownMenuLabel className="px-2 py-2 font-normal">
                                             <div className="flex min-w-0 flex-col">
                                                 <span className="truncate text-sm font-medium text-foreground">{displayName}</span>
                                                 {profile.email && (
@@ -161,8 +161,8 @@ export function SiteChrome({ children }: Readonly<{ children: React.ReactNode }>
                                             </div>
                                         </DropdownMenuLabel>
                                     </DropdownMenuGroup>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem variant="destructive" onClick={() => void handleSignOut()}>
+                                    <DropdownMenuSeparator className="-mx-2 my-2" />
+                                    <DropdownMenuItem className="px-2 py-2 text-xs" variant="destructive" onClick={() => void handleSignOut()}>
                                         <LogOut className="size-4" aria-hidden="true" />
                                         Sign out
                                     </DropdownMenuItem>

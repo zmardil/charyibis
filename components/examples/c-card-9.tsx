@@ -118,7 +118,7 @@ export function VehicleListing({
             className={`inline-flex ${compact ? "h-8 w-full px-2.5 text-[11px]" : "h-9 flex-1 px-3 text-xs"} items-center justify-center rounded-lg bg-indigo-600 font-semibold text-white transition-colors hover:bg-indigo-700`}
             href={`/listings/${listing.slug}`}
           >
-            View deal details
+            View details
           </a>
           {!compact && (
             <Button
