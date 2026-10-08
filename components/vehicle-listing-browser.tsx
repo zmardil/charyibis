@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Search } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { VehicleListing } from "@/components/examples/c-card-9";
-import type { VehicleListingData } from "@/lib/vehicle-listing-types";
+import { Badge } from "@/components/reui/badge";
+import { Button } from "@/components/ui/button";
+import { Command, CommandItem, CommandList } from "@/components/ui/command";
+import type { VehicleListingData, VehicleSuggestion } from "@/lib/vehicle-listing-types";
 
 export function VehicleListingBrowser({ listings }: Readonly<{ listings: VehicleListingData[] }>) {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const matchesSearch = (listing: VehicleListingData) =>
-    [
+  const searchWords = normalizedSearchTerm.split(/\s+/).filter(Boolean);
+  const matchesSearch = (listing: VehicleListingData) => {
+    if (searchWords.length === 0) return true;
+    const fields = [
       listing.title,
       listing.make,
       listing.location,
@@ -27,30 +31,49 @@ export function VehicleListingBrowser({ listings }: Readonly<{ listings: Vehicle
       listing.transmission,
       listing.fuel,
       listing.price,
-    ].some((value) => value?.toLowerCase().includes(normalizedSearchTerm));
-  const modelSuggestions = listings.filter(matchesSearch).slice(0, 6);
+    ].map((value) => value?.toLowerCase());
+    return searchWords.every((word) => fields.some((field) => field?.includes(word)));
+  };
   const filteredListings = listings.filter(matchesSearch);
+
+  const suggestions = useMemo<VehicleSuggestion[]>(() => {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return [];
+    const words = term.split(/\s+/);
+    const seen = new Set<string>();
+    const matches: VehicleSuggestion[] = [];
+    for (const listing of listings) {
+      const make = listing.make.trim();
+      const model = listing.details?.model?.trim();
+      const trim = listing.details?.trimEdition?.trim();
+      const label = [make, model, trim].filter(Boolean).join(" ");
+      if (!label || seen.has(label)) continue;
+      if (words.some((word) => !label.toLowerCase().includes(word))) continue;
+      seen.add(label);
+      matches.push({ make, model, trim, label });
+    }
+    return matches.sort((a, b) => a.label.localeCompare(b.label)).slice(0, 5);
+  }, [listings, searchTerm]);
+  const suggestionsOpen = showSuggestions && suggestions.length > 0;
 
   function goToSearch(query: string) {
     const trimmedQuery = query.trim();
     if (!trimmedQuery) return;
 
     router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
-    setIsSearchFocused(false);
-    setActiveSuggestion(-1);
   }
 
-  useEffect(() => {
-    if (isSearchFocused) {
-      searchInputRef.current?.focus();
-    }
-  }, [isSearchFocused]);
+  function handleSelectSuggestion(value: string) {
+    setSearchTerm(value);
+    setShowSuggestions(false);
+    searchInputRef.current?.focus();
+  }
 
   useEffect(() => {
     function handleSearchShortcut(event: KeyboardEvent) {
       if (event.ctrlKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setIsSearchFocused(true);
+        searchInputRef.current?.focus();
       }
     }
 
@@ -67,120 +90,89 @@ export function VehicleListingBrowser({ listings }: Readonly<{ listings: Vehicle
           </h1>
 
           <div className="flex w-full justify-center">
-            {!isSearchFocused && (
-              <button
-                type="button"
-                className="flex h-10 w-full max-w-md items-center rounded-lg border border-border bg-background px-3 text-left text-sm text-muted-foreground shadow-sm transition-all duration-200 hover:border-indigo-600 hover:shadow-md"
-                onClick={() => setIsSearchFocused(true)}
+            <Command
+              shouldFilter={false}
+              vimBindings={false}
+              className="relative w-full max-w-md overflow-visible bg-transparent p-0"
+            >
+              <form
+                className="flex h-11 w-full max-w-md items-center gap-2 rounded-lg border border-border bg-background px-3 shadow-sm transition-colors focus-within:border-indigo-600 focus-within:ring-4 focus-within:ring-indigo-600/15"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  goToSearch(searchTerm);
+                }}
               >
-                <Search className="pointer-events-none mr-2 size-4 shrink-0" aria-hidden="true" />
-                <span>Search by make and model</span>
-              </button>
-            )}
-
-            {isSearchFocused && (
-              <>
-                <button
-                  type="button"
-                  aria-label="Close search"
-                  className="fixed inset-0 z-40 cursor-default bg-black/35 backdrop-blur-[2px]"
-                  onMouseDown={() => {
-                    setIsSearchFocused(false);
-                    setActiveSuggestion(-1);
+                <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchTerm}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setShowSuggestions(true);
                   }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setShowSuggestions(false)}
+                  onKeyDown={(event) => {
+                    if (
+                      !suggestionsOpen &&
+                      ["ArrowDown", "ArrowUp", "End", "Home", "Enter"].includes(event.key)
+                    ) {
+                      event.stopPropagation();
+                    }
+                    if (event.key === "Escape") {
+                      if (suggestionsOpen) {
+                        event.preventDefault();
+                        setShowSuggestions(false);
+                      } else {
+                        event.currentTarget.blur();
+                      }
+                    }
+                  }}
+                  placeholder="Search by make and model"
+                  aria-label="Search vehicle listings"
+                  className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
                 />
-                <form
-                  className="fixed left-1/2 top-24 z-50 w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 animate-in fade-in zoom-in-95 duration-200 sm:top-28"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    goToSearch(searchTerm);
-                  }}
+                {searchTerm ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label="Clear search"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => setSearchTerm("")}
+                    className="text-muted-foreground"
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                  </Button>
+                ) : null}
+              </form>
+              {suggestionsOpen && (
+                <div
+                  className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-lg border border-border bg-popover p-1 shadow-lg"
+                  onMouseDown={(event) => event.preventDefault()}
                 >
-                  <Search
-                    className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                  <input
-                    ref={searchInputRef}
-                    type="search"
-                    value={searchTerm}
-                    onChange={(event) => {
-                      setSearchTerm(event.target.value);
-                      setActiveSuggestion(-1);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "ArrowDown" && modelSuggestions.length > 0) {
-                        event.preventDefault();
-                        setActiveSuggestion((current) =>
-                          current < modelSuggestions.length - 1 ? current + 1 : 0,
-                        );
-                      }
-                      if (event.key === "ArrowUp" && modelSuggestions.length > 0) {
-                        event.preventDefault();
-                        setActiveSuggestion((current) =>
-                          current > 0 ? current - 1 : modelSuggestions.length - 1,
-                        );
-                      }
-                      if (event.key === "Enter" && activeSuggestion >= 0) {
-                        event.preventDefault();
-                        const listing = modelSuggestions[activeSuggestion];
-                        goToSearch([listing.make, listing.details?.model, listing.details?.trimEdition]
-                          .filter(Boolean)
-                          .join(" "));
-                      }
-                      if (event.key === "Escape") {
-                        setIsSearchFocused(false);
-                        setActiveSuggestion(-1);
-                      }
-                    }}
-                    role="combobox"
-                    aria-autocomplete="list"
-                    aria-expanded={modelSuggestions.length > 0}
-                    aria-controls="vehicle-model-suggestions"
-                    aria-activedescendant={activeSuggestion >= 0 ? `vehicle-model-${activeSuggestion}` : undefined}
-                    placeholder="Search by make and model"
-                    aria-label="Search vehicle listings"
-                    className="h-14 w-full rounded-lg border border-border bg-background pl-12 pr-4 text-base text-foreground shadow-2xl outline-none focus:border-indigo-600 focus:ring-4 focus:ring-indigo-600/15"
-                  />
-                  {modelSuggestions.length > 0 && (
-                    <div id="vehicle-model-suggestions" role="listbox" className="absolute z-10 mt-3 w-full overflow-hidden rounded-lg border border-border bg-background p-1 shadow-2xl">
-                      {modelSuggestions.map((listing, index) => (
-                        <button
-                          key={listing.slug}
-                          id={`vehicle-model-${index}`}
-                          type="button"
-                          role="option"
-                          aria-label={[listing.make, listing.details?.model ?? listing.title, listing.details?.trimEdition]
-                            .filter(Boolean)
-                            .join(" ")}
-                          aria-selected={activeSuggestion === index}
-                          className={`flex w-full items-center rounded-lg px-4 py-3 text-left transition-colors ${activeSuggestion === index ? "bg-indigo-50 text-indigo-700" : "text-foreground hover:bg-muted"}`}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => {
-                            goToSearch([listing.make, listing.details?.model, listing.details?.trimEdition]
-                              .filter(Boolean)
-                              .join(" "));
-                          }}
-                        >
-                          <span className="flex min-w-0 flex-1 items-center gap-2">
-                            <span className="min-w-0 truncate text-sm font-medium">
-                              {[listing.make, listing.details?.model ?? listing.title]
-                                .filter(Boolean)
-                                .join(" ")}
-                            </span>
-                            {listing.details?.trimEdition && (
-                              <span className="max-w-48 shrink-0 truncate rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-                                {listing.details.trimEdition}
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </form>
-              </>
-            )}
+                  <CommandList>
+                    {suggestions.map((suggestion) => (
+                      <CommandItem
+                        key={suggestion.label}
+                        value={suggestion.label}
+                        onSelect={handleSelectSuggestion}
+                      >
+                        <span className="truncate">
+                          {[suggestion.make, suggestion.model].filter(Boolean).join(" ")}
+                        </span>
+                        {suggestion.trim ? (
+                          <Badge variant="secondary" radius="full">
+                            {suggestion.trim}
+                          </Badge>
+                        ) : null}
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </div>
+              )}
+            </Command>
           </div>
         </div>
 

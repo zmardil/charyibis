@@ -1,3 +1,10 @@
+export type VehicleSuggestion = {
+  make: string;
+  model?: string;
+  trim?: string;
+  label: string;
+};
+
 export type VehicleListingData = {
   slug: string;
   title: string;
