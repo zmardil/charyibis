@@ -1,16 +1,11 @@
 import { connection } from "next/server";
 
-import { VehicleSearchResults } from "@/components/vehicle-search-results";
+import { VehicleListingBrowser } from "@/components/vehicle-listing-browser";
 import { getVehicleListings } from "@/lib/vehicle-listing-queries";
 
-export default async function SearchPage({
-    searchParams,
-}: {
-    readonly searchParams: Promise<{ q?: string | string[] }>;
-}) {
+export default async function SearchPage() {
     await connection();
-    const [{ q }, listings] = await Promise.all([searchParams, getVehicleListings()]);
-    const query = Array.isArray(q) ? q[0] ?? "" : q ?? "";
+    const listings = await getVehicleListings();
 
-    return <VehicleSearchResults listings={listings} query={query} />;
+    return <VehicleListingBrowser listings={listings} />;
 }

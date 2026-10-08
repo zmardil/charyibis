@@ -2,39 +2,50 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { VehicleListing } from "@/components/examples/c-card-9";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import { Command, CommandItem, CommandList } from "@/components/ui/command";
+import { VehicleSearchResults } from "@/components/vehicle-search-results";
 import type { VehicleListingData, VehicleSuggestion } from "@/lib/vehicle-listing-types";
 
+function matchesQuery(listing: VehicleListingData, term: string) {
+  const words = term.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return true;
+  const fields = [
+    listing.title,
+    listing.make,
+    listing.location,
+    listing.details?.model,
+    listing.details?.trimEdition,
+    listing.details?.yearOfManufacture,
+    listing.mileage,
+    listing.engine,
+    listing.transmission,
+    listing.fuel,
+    listing.price,
+  ].map((value) => value?.toLowerCase());
+  return words.every((word) => fields.some((field) => field?.includes(word)));
+}
+
 export function VehicleListingBrowser({ listings }: Readonly<{ listings: VehicleListingData[] }>) {
-  const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const query = searchParams.get("q") ?? "";
+  const isResultsMode = pathname === "/search" || query !== "";
+  const [searchTerm, setSearchTerm] = useState(query);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const searchWords = normalizedSearchTerm.split(/\s+/).filter(Boolean);
-  const matchesSearch = (listing: VehicleListingData) => {
-    if (searchWords.length === 0) return true;
-    const fields = [
-      listing.title,
-      listing.make,
-      listing.location,
-      listing.details?.model,
-      listing.details?.trimEdition,
-      listing.details?.yearOfManufacture,
-      listing.mileage,
-      listing.engine,
-      listing.transmission,
-      listing.fuel,
-      listing.price,
-    ].map((value) => value?.toLowerCase());
-    return searchWords.every((word) => fields.some((field) => field?.includes(word)));
-  };
-  const filteredListings = listings.filter(matchesSearch);
+  const filteredListings = useMemo(
+    () => listings.filter((listing) => matchesQuery(listing, searchTerm)),
+    [listings, searchTerm],
+  );
+  const queryListings = useMemo(
+    () => listings.filter((listing) => matchesQuery(listing, query)),
+    [listings, query],
+  );
 
   const suggestions = useMemo<VehicleSuggestion[]>(() => {
     const term = searchTerm.trim().toLowerCase();
@@ -56,11 +67,24 @@ export function VehicleListingBrowser({ listings }: Readonly<{ listings: Vehicle
   }, [listings, searchTerm]);
   const suggestionsOpen = showSuggestions && suggestions.length > 0;
 
-  function goToSearch(query: string) {
-    const trimmedQuery = query.trim();
-    if (!trimmedQuery) return;
+  function submitSearch(value: string) {
+    const trimmedQuery = value.trim();
+    if (!trimmedQuery) {
+      if (isResultsMode) {
+        window.history.pushState(null, "", "/");
+        setSearchTerm("");
+      }
+      return;
+    }
 
-    router.push(`/search?q=${encodeURIComponent(trimmedQuery)}`);
+    window.history.pushState(null, "", `/search?q=${encodeURIComponent(trimmedQuery)}`);
+  }
+
+  function clearSearch() {
+    setSearchTerm("");
+    if (isResultsMode) {
+      window.history.pushState(null, "", "/");
+    }
   }
 
   function handleSelectSuggestion(value: string) {
@@ -81,13 +105,24 @@ export function VehicleListingBrowser({ listings }: Readonly<{ listings: Vehicle
     return () => window.removeEventListener("keydown", handleSearchShortcut);
   }, []);
 
+  useEffect(() => {
+    function syncSearchTermFromUrl() {
+      setSearchTerm(new URLSearchParams(window.location.search).get("q") ?? "");
+    }
+
+    window.addEventListener("popstate", syncSearchTermFromUrl);
+    return () => window.removeEventListener("popstate", syncSearchTermFromUrl);
+  }, []);
+
   return (
     <main className="flex min-h-full w-full flex-1 flex-col items-center bg-white px-6 py-10 dark:bg-black sm:px-10 lg:px-16">
       <div className="w-full max-w-7xl">
         <div className="mb-8 flex flex-col items-center gap-4 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Find your next drive
-          </h1>
+          {!isResultsMode && (
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+              Find your next drive
+            </h1>
+          )}
 
           <div className="flex w-full justify-center">
             <Command
@@ -99,7 +134,7 @@ export function VehicleListingBrowser({ listings }: Readonly<{ listings: Vehicle
                 className="flex h-11 w-full max-w-md items-center gap-2 rounded-lg border border-border bg-background px-3 shadow-sm transition-colors focus-within:border-indigo-600 focus-within:ring-4 focus-within:ring-indigo-600/15"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  goToSearch(searchTerm);
+                  submitSearch(searchTerm);
                 }}
               >
                 <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -140,7 +175,7 @@ export function VehicleListingBrowser({ listings }: Readonly<{ listings: Vehicle
                     size="icon-xs"
                     aria-label="Clear search"
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => setSearchTerm("")}
+                    onClick={clearSearch}
                     className="text-muted-foreground"
                   >
                     <X className="size-4" aria-hidden="true" />
@@ -176,16 +211,22 @@ export function VehicleListingBrowser({ listings }: Readonly<{ listings: Vehicle
           </div>
         </div>
 
-        <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredListings.map((listing) => (
-            <VehicleListing key={listing.slug} listing={listing} />
-          ))}
-        </div>
+        {isResultsMode ? (
+          <VehicleSearchResults listings={queryListings} query={query} />
+        ) : (
+          <>
+            <div className="grid grid-cols-1 justify-items-center gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredListings.map((listing) => (
+                <VehicleListing key={listing.slug} listing={listing} />
+              ))}
+            </div>
 
-        {filteredListings.length === 0 && (
-          <p className="py-16 text-center text-sm text-muted-foreground">
-            No vehicles match your search.
-          </p>
+            {filteredListings.length === 0 && (
+              <p className="py-16 text-center text-sm text-muted-foreground">
+                No vehicles match your search.
+              </p>
+            )}
+          </>
         )}
       </div>
     </main>
